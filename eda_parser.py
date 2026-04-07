@@ -218,8 +218,10 @@ def _parse_knmb(records: List[str]) -> List[Dict]:
                 "art":    "Erinnerung" if _f(rec, 10, 1) == "1" else "Beschwerde",
                 "frist":  _f(rec, 11, 2) + " Wochen",
                 "norm":   _f(rec, 13, 15),
-                "gericht1": _f(rec, 29, 35),
-                "gericht2": _f(rec, 65, 35),
+                "gericht1_plz": _f(rec, 29, 5),
+                "gericht1_ort": _f(rec, 34, 30),
+                "gericht2_plz": _f(rec, 64, 5),
+                "gericht2_ort": _f(rec, 69, 30),
             }
 
     if current:
@@ -439,8 +441,10 @@ def _parse_win(records: List[str]) -> List[Dict]:
                 "art":     "Erinnerung" if _f(rec, 10, 1) == "1" else "Beschwerde",
                 "frist":   _f(rec, 11, 2) + " Wochen",
                 "norm":    _f(rec, 13, 15),
-                "gericht1": _f(rec, 29, 35),
-                "gericht2": _f(rec, 65, 35),
+                "gericht1_plz": _f(rec, 29, 5),
+                "gericht1_ort": _f(rec, 34, 30),
+                "gericht2_plz": _f(rec, 64, 5),
+                "gericht2_ort": _f(rec, 69, 30),
             }
         elif sa == "18" and kennz == "ZAW" and current:
             if fn == "01":
@@ -481,21 +485,24 @@ def _parse_mo(records: List[str]) -> List[Dict]:
         if sa == "20" and kennz == "KS":
             if current:
                 nachrichten.append(current)
-            kezi = _f(rec, 10, 8)
-            asgz = _f(rec, 18, 35)
+            # Feldpositionen (0-basiert, nach SA=0-1, KENNZ=2-6, FN=7-8):
+            # TKEZI=9-16, ASGZ=17-51, GNR1=52-62, GNR2=63-73, GNR3=74-84,
+            # GNR4=85-95, GNR5=96-106, MOD=107-112, AND=113-118, BELART=119-120
+            kezi = rec[9:17].strip()
+            asgz = rec[17:52].strip()
             gnrs = []
             for i in range(5):
-                g = _f(rec, 53 + i*11, 11)
+                g = rec[52 + i*11 : 63 + i*11].strip()
                 if g and g.strip("0"):
                     gnrs.append(_parse_gnr(g))
-            mobelart = _f(rec, 108, 2)
+            mobelart = rec[119:121].strip()
             current = {
                 "typ": "MO",
                 "kezi": kezi,
                 "geschaeftszeichen": asgz,
                 "gerichtsnummern": gnrs,
-                "monierungsdatum": _f(rec, 103, 6),
-                "antragsdatum": _f(rec, 109, 6) if len(rec) > 109 else "",
+                "monierungsdatum": rec[107:113].strip(),
+                "antragsdatum": rec[113:119].strip(),
                 "monierte_antragsart": mobelart_map.get(mobelart, mobelart),
                 "monierungszeilen": [],
             }
@@ -510,19 +517,22 @@ def _parse_mo(records: List[str]) -> List[Dict]:
                 "7": "Schlüssel (2-stellig num.)",
                 "8": "Text (35 Zeichen)",
             }
-            form  = _f(rec, 37, 1)
-            inhalt_raw = rec[37:72]  # Position 38-72 = Feldinhalt
+            # G02 Positionen (0-basiert):
+            # FSCHL=9-11, FELDN=12-31, IDX1=32-33, IDX2=34-35,
+            # MAS=36, MAZ=37, MAZPOS=38, FORM=39, INHALT=40-74
+            form = rec[39:40].strip()
+            inhalt = rec[40:75].strip()
             current["monierungszeilen"].append({
-                "fehlerschlüssel": _f(rec, 10, 3),
-                "feldname":        _f(rec, 13, 20),
-                "index1":          _f(rec, 33, 2),
-                "index2":          _f(rec, 35, 2),
-                "seite":           _f(rec, 37, 1),
-                "zeile":           _f(rec, 38, 1),
-                "position":        _f(rec, 39, 1),
+                "fehlerschlüssel": rec[9:12].strip(),
+                "feldname":        rec[12:32].strip(),
+                "index1":          rec[32:34].strip(),
+                "index2":          rec[34:36].strip(),
+                "seite":           rec[36:37].strip(),
+                "zeile":           rec[37:38].strip(),
+                "position":        rec[38:39].strip(),
                 "feldformat":      form_map.get(form, form),
-                "inhalt":          inhalt_raw.strip(),
-                "_rohdaten":       rec[9:72].strip(),
+                "inhalt":          inhalt,
+                "_rohdaten":       rec[9:75].strip(),
             })
 
     if current:
@@ -580,3 +590,4 @@ def _parse_qu(records: List[str]) -> List[Dict]:
         if rec[:2] == "90" and rec[2:7].strip() == "QU":
             zeilen.append(_f(rec, 10, 116))
     return [{"typ": "QU", "protokollzeilen": zeilen}]
+
