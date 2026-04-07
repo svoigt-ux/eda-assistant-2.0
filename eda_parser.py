@@ -590,4 +590,3 @@ def _parse_qu(records: List[str]) -> List[Dict]:
         if rec[:2] == "90" and rec[2:7].strip() == "QU":
             zeilen.append(_f(rec, 10, 116))
     return [{"typ": "QU", "protokollzeilen": zeilen}]
-
